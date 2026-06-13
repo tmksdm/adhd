@@ -56,7 +56,7 @@ function App() {
           />
           <button
             onClick={handleAdd}
-            className="h-14 shrink-0 rounded-[16px] bg-surface-2 border border-border px-5 text-[17px] font-semibold text-text transition-colors active:bg-border"
+            className="h-14 w-[104px] shrink-0 rounded-[16px] bg-surface-2 border border-border text-[17px] font-semibold text-text transition-colors active:bg-border"
           >
             Добавить
           </button>
