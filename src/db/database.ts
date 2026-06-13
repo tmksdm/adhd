@@ -9,6 +9,7 @@ export interface Task {
   done: boolean;         // выполнена или нет
   order: number;         // порядок в списке (для сортировки/перетаскивания)
   createdAt: number;     // когда создана — метка времени (Date.now()), служебное
+  doneAt?: number;       // когда отметили выполненной (Date.now()); нет — пока не выполнена
 }
 
 // Одна строка-настройка приложения: серия (streak) и счётчики.
@@ -36,4 +37,12 @@ db.version(1).stores({
 db.version(2).stores({
   tasks: '++id, date, done, order, createdAt',
   meta: 'id', // ключ = id, без автонумерации (мы сами кладём id: 1)
+});
+
+// Версия 3: добавили поле doneAt (когда задачу выполнили) — для сортировки
+// выполненных "свежие сверху". Индекс по doneAt, чтобы сортировать быстро.
+// Dexie сам обновит базу v2 → v3, данные НЕ потеряются (старые задачи просто без doneAt).
+db.version(3).stores({
+  tasks: '++id, date, done, order, createdAt, doneAt',
+  meta: 'id',
 });

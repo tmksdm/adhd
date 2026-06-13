@@ -42,15 +42,30 @@ export async function updateTask(
 }
 
 // Удобный переключатель "выполнено / не выполнено".
+// При отметке "выполнено" запоминаем момент (doneAt) — для сортировки "свежие сверху".
+// При снятии галочки doneAt обнуляем.
 export async function toggleDone(id: number): Promise<void> {
   const task = await db.tasks.get(id);
-  if (task) await db.tasks.update(id, { done: !task.done });
+  if (!task) return;
+  const becomingDone = !task.done;
+  await db.tasks.update(id, {
+    done: becomingDone,
+    doneAt: becomingDone ? Date.now() : undefined,
+  });
 }
 
 // Сменить длительность задачи (пресеты 15/30/60 мин).
 export async function setDuration(id: number, durationMin: number): Promise<void> {
   await db.tasks.update(id, { durationMin });
 }
+
+// Переименовать задачу (редактирование названия). Пустое имя игнорируем.
+export async function renameTask(id: number, title: string): Promise<void> {
+  const t = title.trim();
+  if (!t) return;
+  await db.tasks.update(id, { title: t });
+}
+
 
 // DELETE — удалить задачу по id.
 export async function deleteTask(id: number): Promise<void> {
