@@ -77,7 +77,14 @@ body {
   font-family: var(--font-sans);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+  /* Гасим pull-to-refresh и резиновый overscroll — в PWA они только ломают вёрстку. */
+  overscroll-behavior-y: none;
 }
+
+html {
+  overscroll-behavior-y: none;
+}
+
 
 /* ===== АНИМАЦИИ НАГРАДЫ (Этап 6) ===== */
 /* Лайм-вспышка кружка/кнопки в момент выполнения. */

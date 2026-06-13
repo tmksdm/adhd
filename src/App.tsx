@@ -278,6 +278,7 @@ function App() {
             <div className="mt-6 flex gap-3">
               <input
                 id="new-task-list"   
+                type="text"
                 name="new-task-list"
                 autoComplete="off"
                 autoCorrect="off"                           
@@ -542,9 +543,10 @@ function NowScreen({
       </div>
 
       {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
-      <div className="flex gap-3">
+      <div className="sticky bottom-0 flex gap-3 bg-bg pb-[env(safe-area-inset-bottom)] pt-2">
         <input
           id="new-task-now"    
+          type="text"
           name="new-task-now"
           autoComplete="off"
           autoCorrect="off"              
