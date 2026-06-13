@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Task } from "./db/database";
 import {
   addTask,
   deleteDoneTasks,
   deleteTask,
+  exportAll,
   getAllTasks,
   getMeta,
+  importAll,
   registerDone,
   setDuration,
   toggleDone,
@@ -27,6 +29,7 @@ function formatDuration(min: number): string {
 }
 
 function App() {
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   // id задачи с раскрытой панелью пресетов (в режиме списка).
@@ -37,6 +40,10 @@ function App() {
   const [confirmId, setConfirmId] = useState<number | null>(null);
   // true → кнопка "Очистить выполненные" ждёт подтверждения (как у крестика).
   const [confirmClear, setConfirmClear] = useState(false);
+  // true → кнопка "Импорт" ждёт подтверждения (импорт затирает всё локальное).
+  const [confirmImport, setConfirmImport] = useState(false);
+  // Короткое сообщение под кнопками (успех/ошибка экспорта-импорта).
+  const [ioMsg, setIoMsg] = useState<string | null>(null);
   // Текущая длина серии (дней подряд) — показываем в шапке.
   const [streak, setStreak] = useState(0);
   // Когда != null — на экране играет награда (число = серия в плашке).
@@ -120,6 +127,60 @@ function App() {
   async function clearAndRefresh() {
     await deleteDoneTasks();
     await refresh();
+  }
+
+  // ЭКСПОРТ: собрать все данные и скачать одним .json-файлом.
+  async function handleExport() {
+    const data = await exportAll();
+    // Превращаем объект в текст JSON (с отступами — файл читаемый глазами).
+    const text = JSON.stringify(data, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // Имя файла с датой: adhd-backup-2026-06-13.json
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    // Создаём временную ссылку и "кликаем" по ней — браузер скачивает файл.
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `adhd-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url); // освобождаем память
+
+    setIoMsg("Файл сохранён ✓");
+    window.setTimeout(() => setIoMsg(null), 3000);
+  }
+
+  // ИМПОРТ, шаг 1 — первый тап по кнопке: просим подтверждение (затирание!).
+  function handleImportClick() {
+    if (!confirmImport) {
+      setConfirmImport(true);
+      window.setTimeout(() => setConfirmImport(false), 2500);
+      return;
+    }
+    // Второй тап — подтверждено, открываем выбор файла.
+    setConfirmImport(false);
+    importInputRef.current?.click();
+  }
+
+  // ИМПОРТ, шаг 2 — пользователь выбрал файл в системном окне.
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // сбрасываем input, чтобы тот же файл можно было выбрать снова
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await importAll(data); // заменяет ВСЁ (с проверкой формата внутри)
+      await refresh();
+      setIoMsg("Данные загружены ✓");
+    } catch (err) {
+      setIoMsg(err instanceof Error ? err.message : "Не удалось прочитать файл.");
+    }
+    window.setTimeout(() => setIoMsg(null), 4000);
   }
 
   function handleExpand(id: number) {
@@ -310,6 +371,43 @@ function App() {
                 {confirmClear ? "Удалить выполненные?" : "Очистить выполненные"}
               </button>
             )}
+
+            {/* ===== ПЕРЕНОС ДАННЫХ: экспорт / импорт одним файлом ===== */}
+            <div className="mt-10 border-t border-border pt-6">
+              <p className="text-sm font-medium text-text-muted">
+                Перенос на другое устройство
+              </p>
+              <div className="mt-3 flex gap-3">
+                <button
+                  onClick={handleExport}
+                  className="h-12 flex-1 rounded-btn border border-border bg-surface-2 text-sm font-semibold text-text transition-colors active:bg-border"
+                >
+                  Экспорт
+                </button>
+                <button
+                  onClick={handleImportClick}
+                  className={
+                    "h-12 flex-1 rounded-btn border text-sm font-semibold transition-colors " +
+                    (confirmImport
+                      ? "border-border bg-surface-2 text-text active:bg-border"
+                      : "border-border text-text-muted active:bg-surface-2")
+                  }
+                >
+                  {confirmImport ? "Заменит всё. Точно?" : "Импорт"}
+                </button>
+              </div>
+              {/* Скрытый input — открывается программно из handleImportClick */}
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+              {ioMsg && (
+                <p className="mt-3 text-sm font-medium text-text-muted">{ioMsg}</p>
+              )}
+            </div>
 
           </>
         )}

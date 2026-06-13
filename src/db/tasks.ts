@@ -122,3 +122,55 @@ export async function deleteDoneTasks(): Promise<number> {
   await db.tasks.bulkDelete(ids);
   return ids.length;
 }
+
+// ===== ЭКСПОРТ / ИМПОРТ (перенос между устройствами одним JSON-файлом) =====
+
+// Формат файла бэкапа. version — версия формата файла (НЕ версия схемы Dexie),
+// чтобы в будущем можно было понять структуру старого файла и не сломаться.
+export interface BackupFile {
+  app: 'adhd-planner';   // метка-подпись, чтобы не импортировать чужой JSON
+  version: 1;            // версия формата этого файла
+  exportedAt: number;    // когда выгрузили (Date.now()) — для информации
+  tasks: Task[];         // все задачи как есть
+  meta: Meta[];          // строки meta (там лежит streak!) — массивом на всякий
+}
+
+// Собрать ВСЕ данные приложения в один объект для скачивания.
+export async function exportAll(): Promise<BackupFile> {
+  const tasks = await db.tasks.toArray();
+  const meta = await db.meta.toArray();
+  return {
+    app: 'adhd-planner',
+    version: 1,
+    exportedAt: Date.now(),
+    tasks,
+    meta,
+  };
+}
+
+// Проверить, что разобранный JSON — это действительно наш файл бэкапа.
+// Бросает понятную ошибку, если что-то не так (покажем её пользователю).
+function validateBackup(data: unknown): asserts data is BackupFile {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Файл пустой или не похож на резервную копию.');
+  }
+  const d = data as Record<string, unknown>;
+  if (d.app !== 'adhd-planner') {
+    throw new Error('Это не файл резервной копии ADHD-планировщика.');
+  }
+  if (!Array.isArray(d.tasks) || !Array.isArray(d.meta)) {
+    throw new Error('Файл повреждён: нет списка задач или настроек.');
+  }
+}
+
+// ЗАМЕНИТЬ ВСЁ содержимым файла бэкапа (выбранный вариант поведения импорта).
+// Всё происходит в одной транзакции: либо заменилось целиком, либо ничего.
+export async function importAll(data: unknown): Promise<void> {
+  validateBackup(data);
+  await db.transaction('rw', db.tasks, db.meta, async () => {
+    await db.tasks.clear();
+    await db.meta.clear();
+    if (data.tasks.length) await db.tasks.bulkAdd(data.tasks);
+    if (data.meta.length) await db.meta.bulkAdd(data.meta);
+  });
+}
