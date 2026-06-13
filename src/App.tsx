@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import type { Task } from "./db/database";
 import {
   addTask,
+  deleteDoneTasks,
   deleteTask,
+  getMeta,
   getTasksByDate,
+  registerDone,
   setDuration,
   toggleDone,
   todayStr,
@@ -33,10 +36,19 @@ function App() {
   const [mode, setMode] = useState<"now" | "list">("now");
   // id задачи, у которой крестик сейчас спрашивает подтверждение удаления.
   const [confirmId, setConfirmId] = useState<number | null>(null);
+  // true → кнопка "Очистить выполненные" ждёт подтверждения (как у крестика).
+  const [confirmClear, setConfirmClear] = useState(false);
+  // Текущая длина серии (дней подряд) — показываем в шапке.
+  const [streak, setStreak] = useState(0);
+  // Когда != null — на экране играет награда (число = серия в плашке).
+  // Если firstToday=false, плашку "Серия N" не показываем, только искры.
+  const [reward, setReward] = useState<{ streak: number; firstToday: boolean } | null>(null);
 
   async function refresh() {
     const list = await getTasksByDate(todayStr());
     setTasks(list);
+    const meta = await getMeta();
+    setStreak(meta.streakCount);
   }
 
   useEffect(() => {
@@ -52,7 +64,20 @@ function App() {
   }
 
   async function handleToggle(id: number) {
+    // Узнаём состояние ДО переключения: засчитываем серию только при отметке "выполнено".
+    const before = tasks.find((t) => t.id === id);
+    const becomingDone = before ? !before.done : false;
+
     await toggleDone(id);
+
+    if (becomingDone) {
+      // Задачу отметили выполненной → засчитываем в серию и играем награду.
+      const result = await registerDone();
+      setReward(result);
+      // Награда живёт ~1.8 сек (под длину анимации плашки), потом убираем.
+      window.setTimeout(() => setReward(null), 1800);
+    }
+
     await refresh();
   }
 
@@ -81,12 +106,40 @@ function App() {
     await refresh();
   }
 
+  function handleClearDone() {
+    // Первый тап — просим подтверждение, авто-сброс через 2.5 сек.
+    if (!confirmClear) {
+      setConfirmClear(true);
+      window.setTimeout(() => setConfirmClear(false), 2500);
+      return;
+    }
+    // Второй тап — реально чистим.
+    setConfirmClear(false);
+    void clearAndRefresh();
+  }
+
+  async function clearAndRefresh() {
+    await deleteDoneTasks();
+    await refresh();
+  }
+
   function handleExpand(id: number) {
     setOpenId((cur) => (cur === id ? null : id));
   }
 
   // Итог дня: суммарная длительность всех задач.
   const totalMin = tasks.reduce((sum, t) => sum + t.durationMin, 0);
+
+  // Для показа: невыполненные сверху, выполненные снизу.
+  // Внутри каждой группы сохраняем исходный порядок (order).
+  // Поле order в базе НЕ трогаем — это только порядок отображения.
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1; // невыполненные раньше
+    return a.order - b.order; // внутри группы — по порядку добавления
+  });
+
+  // Есть ли выполненные задачи — от этого зависит показ кнопки уборки.
+  const hasDone = tasks.some((t) => t.done);
 
   // "Текущая" задача = первая невыполненная по порядку.
   const currentTask = tasks.find((t) => !t.done) ?? null;
@@ -95,6 +148,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
+      {reward && <RewardBurst streak={reward.streak} firstToday={reward.firstToday} />}
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 py-6">
         {mode === "now" ? (
           /* ============ РЕЖИМ «СЕЙЧАС»: одна задача крупно ============ */
@@ -102,6 +156,7 @@ function App() {
             currentTask={currentTask}
             remaining={remaining}
             hasTasks={tasks.length > 0}
+            streak={streak}
             title={title}
             setTitle={setTitle}
             onAdd={handleAdd}
@@ -115,12 +170,19 @@ function App() {
               <h1 className="text-[28px] font-bold tracking-[-0.02em]">
                 Сегодня
               </h1>
-              <button
-                onClick={() => setMode("now")}
-                className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
-              >
-                Сейчас
-              </button>
+              <div className="flex items-center gap-2">
+                {streak > 0 && (
+                  <span className="rounded-btn border border-border bg-surface-2 px-3 py-2 text-sm font-bold text-reward">
+                    🔥 {streak}
+                  </span>
+                )}
+                <button
+                  onClick={() => setMode("now")}
+                  className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
+                >
+                  Сейчас
+                </button>
+              </div>
             </div>
             <p className="mt-1 text-sm font-medium text-text-muted">
               {tasks.length === 0
@@ -149,7 +211,7 @@ function App() {
 
             {/* ТАЙМЛАЙН ДНЯ */}
             <ul className="mt-6 flex flex-col gap-3">
-              {tasks.map((task) => {
+              {sortedTasks.map((task) => {
                 const barHeight = Math.max(
                   MIN_TILE_PX,
                   Math.round(task.durationMin * PX_PER_MIN),
@@ -234,6 +296,22 @@ function App() {
                 );
               })}
             </ul>
+            
+            {/* Уборка: удалить все выполненные разом. Только если есть что чистить. */}
+            {hasDone && (
+              <button
+                onClick={handleClearDone}
+                className={
+                  "mt-5 w-full rounded-btn border py-3 text-sm font-semibold transition-colors " +
+                  (confirmClear
+                    ? "border-border bg-surface-2 text-text active:bg-border"
+                    : "border-border text-text-muted active:bg-surface-2")
+                }
+              >
+                {confirmClear ? "Удалить выполненные?" : "Очистить выполненные"}
+              </button>
+            )}
+
           </>
         )}
       </main>
@@ -248,6 +326,7 @@ function NowScreen({
   currentTask,
   remaining,
   hasTasks,
+  streak,
   title,
   setTitle,
   onAdd,
@@ -257,6 +336,7 @@ function NowScreen({
   currentTask: Task | null;
   remaining: number;
   hasTasks: boolean;
+  streak: number;
   title: string;
   setTitle: (v: string) => void;
   onAdd: () => void;
@@ -268,12 +348,19 @@ function NowScreen({
       {/* Шапка: дата-слово + кнопка перехода к списку */}
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-bold tracking-[-0.02em]">Сейчас</h1>
-        <button
-          onClick={onOpenList}
-          className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
-        >
-          Все задачи
-        </button>
+        <div className="flex items-center gap-2">
+          {streak > 0 && (
+            <span className="rounded-btn border border-border bg-surface-2 px-3 py-2 text-sm font-bold text-reward">
+              🔥 {streak}
+            </span>
+          )}
+          <button
+            onClick={onOpenList}
+            className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
+          >
+            Все задачи
+          </button>
+        </div>
       </div>
 
       {/* Центральная зона: либо текущая задача, либо "всё сделано" */}
@@ -339,5 +426,69 @@ function NowScreen({
     </>
   );
 }
+
+/* ============================================================
+   НАГРАДА — оверлей с искрами + плашка "Серия N".
+   Лайм-акцент (--reward) — ТОЛЬКО здесь, на успехе.
+   ============================================================ */
+function RewardBurst({ streak, firstToday }: { streak: number; firstToday: boolean }) {
+  // flew=false → искры в центре; через мгновение flew=true → разлетаются (CSS transition).
+  const [flew, setFlew] = useState(false);
+  // gone=true → искры отыграли и убираются из DOM (чтобы не "замирали" точками).
+  const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    // Двойной requestAnimationFrame — гарантируем, что старт (центр) отрисовался,
+    // и только потом меняем transform, чтобы transition реально проиграл.
+    const r = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setFlew(true)),
+    );
+    // Полёт искр длится 0.7 сек — сразу после убираем их из DOM.
+    const t = window.setTimeout(() => setGone(true), 750);
+    return () => {
+      cancelAnimationFrame(r);
+      window.clearTimeout(t);
+    };
+  }, []);
+
+  // 6 искорок, разлетающихся в разные стороны (углы по кругу).
+  const sparks = Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 6;
+    const dist = 70; // на сколько px улетает искра
+    return {
+      tx: Math.cos(angle) * dist,
+      ty: Math.sin(angle) * dist,
+    };
+  });
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+      {/* Искры (убираются из DOM после полёта, чтобы не замирали точками) */}
+      <div className="relative">
+        {!gone && sparks.map((s, i) => (
+          <span
+            key={i}
+            className="animate-spark absolute h-2.5 w-2.5 rounded-full bg-reward"
+            style={{
+              left: "-5px",
+              top: "-5px",
+              transform: flew
+                ? `translate(${s.tx}px, ${s.ty}px) scale(0.4)`
+                : "translate(0px, 0px) scale(1)",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Плашка "Серия N" — только при первом выполнении за день */}
+      {firstToday && (
+        <div className="animate-streak-rise absolute bottom-28 rounded-btn bg-reward px-5 py-3 text-[17px] font-bold text-bg shadow-lg">
+          Серия: {streak} 🔥
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default App;

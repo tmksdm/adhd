@@ -58,3 +58,46 @@ body {
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ===== АНИМАЦИИ НАГРАДЫ (Этап 6) ===== */
+/* Лайм-вспышка кружка/кнопки в момент выполнения. */
+@keyframes reward-pop {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0    hsl(var(--reward) / 0.0); }
+  40%  { transform: scale(1.18); box-shadow: 0 0 0 8px  hsl(var(--reward) / 0.35); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 16px hsl(var(--reward) / 0.0); }
+}
+.animate-reward-pop {
+  animation: reward-pop 0.55s ease-out;
+}
+
+/* Плашка "Серия N" мягко всплывает и тает. */
+@keyframes streak-rise {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.92); }
+  18%  { opacity: 1; transform: translateY(0)    scale(1); }
+  80%  { opacity: 1; transform: translateY(0)    scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+.animate-streak-rise {
+  animation: streak-rise 1.8s ease-out forwards;
+}
+
+/* Искорки-частицы: разлетаются и гаснут.
+   Конечную точку полёта задаём инлайн-стилем (translate),
+   а в анимации трогаем только прозрачность и масштаб — так надёжнее в Tailwind v4. */
+@keyframes spark-fade {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-spark {
+  animation: spark-fade 0.7s ease-out forwards;
+  transition: transform 0.7s ease-out;
+}
+
+/* Уважаем системную настройку "меньше движения" — отключаем анимации. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-reward-pop,
+  .animate-streak-rise,
+  .animate-spark {
+    animation: none;
+  }
+}
