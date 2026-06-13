@@ -14,23 +14,22 @@ export function todayStr(): string {
 export async function addTask(
   title: string,
   durationMin = 30,
-  date = todayStr(),
 ): Promise<number> {
-  const count = await db.tasks.where('date').equals(date).count();
+  const count = await db.tasks.count();
   const id = await db.tasks.add({
     title: title.trim(),
     durationMin,
-    date,
+    date: todayStr(), // поле оставляем для совместимости/экспорта, но фильтр по нему больше не идёт
     done: false,
-    order: count, // новая задача встаёт в конец списка этого дня
+    order: count, // новая задача встаёт в конец общего списка
     createdAt: Date.now(),
   } as Task);
   return id as number;
 }
 
-// READ — все задачи на конкретный день, в порядке поля order.
-export async function getTasksByDate(date = todayStr()): Promise<Task[]> {
-  const tasks = await db.tasks.where('date').equals(date).toArray();
+// READ — ВСЕ задачи (список «вечный», без привязки ко дню), в порядке поля order.
+export async function getAllTasks(): Promise<Task[]> {
+  const tasks = await db.tasks.toArray();
   return tasks.sort((a, b) => a.order - b.order);
 }
 
@@ -113,12 +112,10 @@ export async function registerDone(): Promise<{ streak: number; firstToday: bool
   return { streak: streakCount, firstToday: true };
 }
 
-// Удалить все выполненные задачи за день одним махом ("уборка").
+// Удалить ВСЕ выполненные задачи одним махом ("уборка").
 // Возвращает, сколько удалили (на случай, если захотим показать).
-export async function deleteDoneTasks(date = todayStr()): Promise<number> {
+export async function deleteDoneTasks(): Promise<number> {
   const done = await db.tasks
-    .where('date')
-    .equals(date)
     .filter((t) => t.done === true)
     .toArray();
   const ids = done.map((t) => t.id);

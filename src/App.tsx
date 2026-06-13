@@ -4,12 +4,11 @@ import {
   addTask,
   deleteDoneTasks,
   deleteTask,
+  getAllTasks,
   getMeta,
-  getTasksByDate,
   registerDone,
   setDuration,
   toggleDone,
-  todayStr,
 } from "./db/tasks";
 
 // Пресеты длительности (минуты).
@@ -45,7 +44,7 @@ function App() {
   const [reward, setReward] = useState<{ streak: number; firstToday: boolean } | null>(null);
 
   async function refresh() {
-    const list = await getTasksByDate(todayStr());
+    const list = await getAllTasks();
     setTasks(list);
     const meta = await getMeta();
     setStreak(meta.streakCount);
