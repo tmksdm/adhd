@@ -10,6 +10,7 @@ import {
   importAll,
   registerDone,
   setDuration,
+  swapOrder,
   toggleDone,
 } from "./db/tasks";
 
@@ -106,6 +107,20 @@ function App() {
     await setDuration(id, min);
     await refresh();
   }
+
+  // Сдвинуть задачу на одну позицию вверх (-1) или вниз (+1) среди ВИДИМЫХ соседей.
+  // index — позиция задачи в sortedTasks, delta — -1 (вверх) или +1 (вниз).
+  async function handleMove(index: number, delta: number) {
+    const neighbor = index + delta;
+    if (neighbor < 0 || neighbor >= sortedTasks.length) return; // края списка
+    const a = sortedTasks[index];
+    const b = sortedTasks[neighbor];
+    // Двигаем только внутри своей группы (не перемешиваем сделанные с несделанными).
+    if (a.done !== b.done) return;
+    await swapOrder(a.id!, b.id!);
+    await refresh();
+  }
+
 
   function handleDelete(id: number) {
     // Первый тап — просим подтверждение и заводим авто-сброс через 2.5 сек.
@@ -312,12 +327,18 @@ function App() {
 
             {/* ТАЙМЛАЙН ДНЯ */}
             <ul className="mt-6 flex flex-col gap-3">
-              {sortedTasks.map((task) => {
+              {sortedTasks.map((task, index) => {
                 const barHeight = Math.max(
                   MIN_TILE_PX,
                   Math.round(task.durationMin * PX_PER_MIN),
                 );
                 const isOpen = openId === task.id;
+
+                // Можно ли двигать вверх/вниз: есть видимый сосед той же группы (done).
+                const prev = sortedTasks[index - 1];
+                const next = sortedTasks[index + 1];
+                const canUp = !!prev && prev.done === task.done;
+                const canDown = !!next && next.done === task.done;
 
                 return (
                   <li key={task.id}>
@@ -356,6 +377,36 @@ function App() {
                           {formatDuration(task.durationMin)}
                         </span>
                       </button>
+
+                      {/* Стрелки порядка ±1 (вверх/вниз). Прячем у краёв группы. */}
+                      <div className="flex shrink-0 flex-col">
+                        <button
+                          onClick={() => handleMove(index, -1)}
+                          disabled={!canUp}
+                          aria-label="Выше"
+                          className={
+                            "flex h-6 w-7 items-center justify-center rounded-md text-xs transition-colors " +
+                            (canUp
+                              ? "text-text-muted active:bg-border active:text-text"
+                              : "text-border")
+                          }
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => handleMove(index, 1)}
+                          disabled={!canDown}
+                          aria-label="Ниже"
+                          className={
+                            "flex h-6 w-7 items-center justify-center rounded-md text-xs transition-colors " +
+                            (canDown
+                              ? "text-text-muted active:bg-border active:text-text"
+                              : "text-border")
+                          }
+                        >
+                          ▼
+                        </button>
+                      </div>
 
                       {/* Крестик: первый тап — "Удалить?", второй — удаляет. */}
                       <button
@@ -485,8 +536,19 @@ function NowScreen({
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }) {
+  // Короткий лайм-пульс кнопки "Готово" в момент выполнения (дофаминовый акцент).
+  const [popNow, setPopNow] = useState(false);
+
+  // Нажали "Готово": включаем пульс и сразу зовём onToggle.
+  // Класс снимется сам по событию onAnimationEnd.
+  function handleDonePress(id: number) {
+    setPopNow(true);
+    onToggle(id);
+  }
+
   return (
     <>
+
       {/* Шапка: дата-слово + кнопка перехода к списку */}
       <div className="flex items-center justify-between">
         <h1 className="text-[28px] font-bold tracking-[-0.02em]">Сейчас</h1>
@@ -528,8 +590,12 @@ function NowScreen({
 
             {/* Большая кнопка под палец: отметить выполненной */}
             <button
-              onClick={() => onToggle(currentTask.id!)}
-              className="mt-10 flex h-16 w-full items-center justify-center rounded-btn bg-surface-2 border border-border text-[19px] font-semibold text-text transition-colors active:bg-border"
+              onClick={() => handleDonePress(currentTask.id!)}
+              onAnimationEnd={() => setPopNow(false)}
+              className={
+                "mt-10 flex h-16 w-full items-center justify-center rounded-btn bg-surface-2 border border-border text-[19px] font-semibold text-text transition-colors active:bg-border " +
+                (popNow ? "animate-reward-pop" : "")
+              }
             >
               Готово ✓
             </button>

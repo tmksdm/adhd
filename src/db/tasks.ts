@@ -57,6 +57,19 @@ export async function deleteTask(id: number): Promise<void> {
   await db.tasks.delete(id);
 }
 
+// Поменять местами порядок (поле order) двух задач — для стрелок ±1.
+// Делаем в одной транзакции, чтобы не было промежуточного "оба с одинаковым order".
+export async function swapOrder(idA: number, idB: number): Promise<void> {
+  await db.transaction('rw', db.tasks, async () => {
+    const a = await db.tasks.get(idA);
+    const b = await db.tasks.get(idB);
+    if (!a || !b) return;
+    await db.tasks.update(idA, { order: b.order });
+    await db.tasks.update(idB, { order: a.order });
+  });
+}
+
+
 // ===== СЕРИЯ (STREAK) =====
 
 // Прочитать строку meta. Если её ещё нет — создаём с нулями.
