@@ -50,6 +50,21 @@ function App() {
   // Если firstToday=false, плашку "Серия N" не показываем, только искры.
   const [reward, setReward] = useState<{ streak: number; firstToday: boolean } | null>(null);
 
+  // Тема: "dark" (по умолчанию) или "light". Храним в localStorage, чтобы пережила перезагрузку.
+  const [theme, setTheme] = useState<"dark" | "light">(
+    () => (localStorage.getItem("adhd-theme") === "light" ? "light" : "dark"),
+  );
+
+  // При смене темы добавляем/снимаем класс .light на <html> и сохраняем выбор.
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", theme === "light");
+    localStorage.setItem("adhd-theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((cur) => (cur === "light" ? "dark" : "light"));
+  }
+
   async function refresh() {
     const list = await getAllTasks();
     setTasks(list);
@@ -217,6 +232,8 @@ function App() {
             remaining={remaining}
             hasTasks={tasks.length > 0}
             streak={streak}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             title={title}
             setTitle={setTitle}
             onAdd={handleAdd}
@@ -236,6 +253,13 @@ function App() {
                     🔥 {streak}
                   </span>
                 )}
+                <button
+                  onClick={toggleTheme}
+                  aria-label="Сменить тему"
+                  className="rounded-btn border border-border bg-surface-2 px-3 py-2 text-sm transition-colors active:bg-border"
+                >
+                  {theme === "light" ? "🌙" : "☀️"}
+                </button>
                 <button
                   onClick={() => setMode("now")}
                   className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
@@ -429,6 +453,8 @@ function NowScreen({
   onAdd,
   onToggle,
   onOpenList,
+  theme,
+  onToggleTheme,
 }: {
   currentTask: Task | null;
   remaining: number;
@@ -439,6 +465,8 @@ function NowScreen({
   onAdd: () => void;
   onToggle: (id: number) => void;
   onOpenList: () => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }) {
   return (
     <>
@@ -451,6 +479,13 @@ function NowScreen({
               🔥 {streak}
             </span>
           )}
+          <button
+            onClick={onToggleTheme}
+            aria-label="Сменить тему"
+            className="rounded-btn border border-border bg-surface-2 px-3 py-2 text-sm transition-colors active:bg-border"
+          >
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
           <button
             onClick={onOpenList}
             className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
