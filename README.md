@@ -1,73 +1,28 @@
-# React + TypeScript + Vite
+# ADHD-планировщик
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PWA-планировщик дня для людей с СДВГ. Работает офлайн, ставится на домашний экран, данные хранятся только локально в браузере (IndexedDB). Без сервера, регистрации и облака.
 
-Currently, two official plugins are available:
+**Живое приложение:** https://tmksdm.github.io/adhd/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Возможности
 
-## React Compiler
+- Добавление задачи в 2 действия (обязательно только название).
+- Визуальный таймлайн дня: высота плитки = длительность задачи (борьба с time blindness).
+- Режим «Сейчас» — одна текущая задача крупно, остальное скрыто.
+- Дофаминовая микроанимация и счётчик серии (streak) за выполнение. Без наказаний за пропуски.
+- Светлая и тёмная темы.
+- Экспорт/импорт всех данных одним JSON-файлом — единственный способ переноса между устройствами.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Стек
 
-## Expanding the ESLint configuration
+Vite + React + TypeScript, Tailwind CSS, Dexie.js (IndexedDB), vite-plugin-pwa.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Разработка
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+npm install
+npm run dev      # localhost:5173/adhd/
+npm run build    # сборка в dist/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Деплой автоматический: push в ветку `master` → GitHub Actions → GitHub Pages.

@@ -277,6 +277,7 @@ function App() {
             {/* Зона добавления задачи: поле + кнопка */}
             <div className="mt-6 flex gap-3">
               <input
+                id="new-task-list"              
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => {
@@ -540,6 +541,7 @@ function NowScreen({
       {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
       <div className="flex gap-3">
         <input
+          id="new-task-now"        
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
