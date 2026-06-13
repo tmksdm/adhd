@@ -52,11 +52,11 @@ function App() {
               if (e.key === "Enter") handleAdd();
             }}
             placeholder="Что нужно сделать?"
-            className="h-14 flex-1 rounded-[14px] border border-border bg-surface-2 px-4 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
+            className="h-14 min-w-0 flex-1 rounded-[14px] border border-border bg-surface-2 px-4 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
           />
           <button
             onClick={handleAdd}
-            className="h-14 w-[104px] shrink-0 rounded-[16px] bg-surface-2 border border-border text-[17px] font-semibold text-text transition-colors active:bg-border"
+            className="h-14 shrink-0 rounded-[16px] bg-surface-2 border border-border px-5 text-[17px] font-semibold text-text transition-colors active:bg-border"
           >
             Добавить
           </button>
