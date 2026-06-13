@@ -276,20 +276,35 @@ function App() {
 
             {/* Зона добавления задачи: поле + кнопка */}
             <div className="mt-6 flex gap-3">
-              <input
-                id="new-task-list"   
-                type="text"
-                name="new-task-list"
-                autoComplete="off"
-                autoCorrect="off"                           
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAdd();
-                }}
-                placeholder="Что нужно сделать?"
-                className="h-14 min-w-0 flex-1 rounded-field border border-border bg-surface-2 px-4 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
-              />
+              <div className="relative min-w-0 flex-1">
+                <input
+                  id="new-task-list"
+                  type="text"
+                  name="new-task-list"
+                  autoComplete="new-password"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  autoCorrect="off"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAdd();
+                  }}
+                  placeholder="Что нужно сделать?"
+                  className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
+                />
+                {title && (
+                  <button
+                    type="button"
+                    onClick={() => setTitle("")}
+                    aria-label="Очистить поле"
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-muted active:bg-border active:text-text"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
               <button
                 onClick={handleAdd}
                 className="h-14 shrink-0 rounded-btn bg-surface-2 border border-border px-5 text-[17px] font-semibold text-text transition-colors active:bg-border"
@@ -544,20 +559,35 @@ function NowScreen({
 
       {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
       <div className="sticky bottom-0 flex gap-3 bg-bg pb-[env(safe-area-inset-bottom)] pt-2">
-        <input
-          id="new-task-now"    
-          type="text"
-          name="new-task-now"
-          autoComplete="off"
-          autoCorrect="off"              
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onAdd();
-          }}
-          placeholder="Что нужно сделать?"
-          className="h-14 min-w-0 flex-1 rounded-field border border-border bg-surface-2 px-4 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
-        />
+        <div className="relative min-w-0 flex-1">
+          <input
+            id="new-task-now"
+            type="text"
+            name="new-task-now"
+            autoComplete="new-password"
+            data-form-type="other"
+            data-lpignore="true"
+            autoCorrect="off"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onAdd();
+            }}
+            placeholder="Что нужно сделать?"
+            className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
+          />
+          {title && (
+            <button
+              type="button"
+              onClick={() => setTitle("")}
+              aria-label="Очистить поле"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-muted active:bg-border active:text-text"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         <button
           onClick={onAdd}
           className="h-14 shrink-0 rounded-btn bg-surface-2 border border-border px-5 text-[17px] font-semibold text-text transition-colors active:bg-border"
