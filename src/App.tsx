@@ -288,7 +288,7 @@ function App() {
                     if (e.key === "Enter") handleAdd();
                   }}
                   placeholder="Что нужно сделать?"
-                  className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
+                  className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-[15px] placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
                 />
                 {title && (
                   <button
@@ -568,7 +568,7 @@ function NowScreen({
               if (e.key === "Enter") onAdd();
             }}
             placeholder="Что нужно сделать?"
-            className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
+            className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-[15px] placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
           />
           {title && (
             <button
