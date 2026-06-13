@@ -222,9 +222,9 @@ function App() {
   const remaining = tasks.filter((t) => !t.done).length;
 
   return (
-    <div className="min-h-screen bg-bg text-text">
+    <div className="min-h-dvh select-none bg-bg text-text">
       {reward && <RewardBurst streak={reward.streak} firstToday={reward.firstToday} />}
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 py-6">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-6">
         {mode === "now" ? (
           /* ============ РЕЖИМ «СЕЙЧАС»: одна задача крупно ============ */
           <NowScreen
@@ -277,7 +277,10 @@ function App() {
             {/* Зона добавления задачи: поле + кнопка */}
             <div className="mt-6 flex gap-3">
               <input
-                id="new-task-list"              
+                id="new-task-list"   
+                name="new-task-list"
+                autoComplete="off"
+                autoCorrect="off"                           
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => {
@@ -541,7 +544,10 @@ function NowScreen({
       {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
       <div className="flex gap-3">
         <input
-          id="new-task-now"        
+          id="new-task-now"    
+          name="new-task-now"
+          autoComplete="off"
+          autoCorrect="off"              
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
