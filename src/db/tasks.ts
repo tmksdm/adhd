@@ -48,6 +48,11 @@ export async function toggleDone(id: number): Promise<void> {
   if (task) await db.tasks.update(id, { done: !task.done });
 }
 
+// Сменить длительность задачи (пресеты 15/30/60 мин).
+export async function setDuration(id: number, durationMin: number): Promise<void> {
+  await db.tasks.update(id, { durationMin });
+}
+
 // DELETE — удалить задачу по id.
 export async function deleteTask(id: number): Promise<void> {
   await db.tasks.delete(id);
