@@ -281,10 +281,7 @@ function App() {
                   id="new-task-list"
                   type="text"
                   name="new-task-list"
-                  autoComplete="new-password"
-                  data-form-type="other"
-                  data-lpignore="true"
-                  autoCorrect="off"
+                  autoComplete="off"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => {
@@ -564,10 +561,7 @@ function NowScreen({
             id="new-task-now"
             type="text"
             name="new-task-now"
-            autoComplete="new-password"
-            data-form-type="other"
-            data-lpignore="true"
-            autoCorrect="off"
+            autoComplete="off"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
