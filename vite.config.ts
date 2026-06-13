@@ -11,6 +11,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // По умолчанию SW кэширует js/css/html/png/svg, но НЕ шрифты.
+        // Добавляем woff2, чтобы локальный Inter попал в офлайн-кэш.
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+      },      
       manifest: {
         name: 'ADHD-планировщик',
         short_name: 'ADHD',
