@@ -681,7 +681,7 @@ function NowScreen({
       </div>
 
       {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
-      <div className="sticky bottom-0 flex gap-3 bg-bg pb-[env(safe-area-inset-bottom)] pt-2">
+      <div className="sticky bottom-0 flex gap-3 bg-bg pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         <div className="relative min-w-0 flex-1">
           <input
             id="new-task-now"

@@ -21,9 +21,11 @@ export default defineConfig({
         short_name: 'ADHD',
         description: 'Планировщик дня для людей с СДВГ',
         lang: 'ru',
-        theme_color: '#171717',
-        background_color: '#171717',
+        theme_color: '#0c0f14',
+        background_color: '#0c0f14',
         display: 'standalone',
+        display_override: ['standalone'],
+        edge_to_edge: true,
         start_url: '/adhd/',
         scope: '/adhd/',
         icons: [
