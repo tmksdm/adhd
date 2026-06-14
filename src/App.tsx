@@ -124,6 +124,7 @@ function App() {
 
   async function handleDuration(id: number, min: number) {
     await setDuration(id, min);
+    setOpenId(null); // выбрали длительность — панель сразу закрывается (без лишнего клика)
     await refresh();
   }
 
