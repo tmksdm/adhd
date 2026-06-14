@@ -10,7 +10,6 @@ import {
   importAll,
   registerDone,
   renameTask,
-  setDuration,
   swapOrder,
   toggleDone,
 } from "./db/tasks";
@@ -28,21 +27,6 @@ import {
   IconTrash,
 } from "./components/Icons";
 
-
-// Пресеты длительности (минуты).
-const PRESETS = [15, 30, 60];
-
-// Высота полосы времени: пикселей на минуту + минимум, чтоб 15 мин было читаемо.
-const PX_PER_MIN = 2.8;
-const MIN_TILE_PX = 56;
-
-// Минуты → красивая подпись: 45 мин / 1 ч / 1 ч 30 мин.
-function formatDuration(min: number): string {
-  if (min < 60) return `${min} мин`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
-}
 
 function App() {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -122,21 +106,13 @@ function App() {
     await refresh();
   }
 
-  async function handleDuration(id: number, min: number) {
-    await setDuration(id, min);
-    setOpenId(null); // выбрали длительность — панель сразу закрывается (без лишнего клика)
-    await refresh();
-  }
-
-  // Сдвинуть задачу на одну позицию вверх (-1) или вниз (+1) среди ВИДИМЫХ соседей.
-  // index — позиция задачи в sortedTasks, delta — -1 (вверх) или +1 (вниз).
+  // Сдвинуть АКТУАЛЬНУЮ задачу на одну позицию вверх (-1) или вниз (+1).
+  // index — позиция в activeTasks (выполненные не двигаем — у них своя сортировка по времени).
   async function handleMove(index: number, delta: number) {
     const neighbor = index + delta;
-    if (neighbor < 0 || neighbor >= sortedTasks.length) return; // края списка
-    const a = sortedTasks[index];
-    const b = sortedTasks[neighbor];
-    // Двигаем только внутри своей группы (не перемешиваем сделанные с несделанными).
-    if (a.done !== b.done) return;
+    if (neighbor < 0 || neighbor >= activeTasks.length) return; // края списка
+    const a = activeTasks[index];
+    const b = activeTasks[neighbor];
     await swapOrder(a.id!, b.id!);
     await refresh();
   }
@@ -260,24 +236,15 @@ function App() {
   }
 
 
-  // Итог дня: суммарная длительность всех задач.
-  const totalMin = tasks.reduce((sum, t) => sum + t.durationMin, 0);
+  // Актуальные задачи (невыполненные) — по порядку добавления.
+  const activeTasks = [...tasks]
+    .filter((t) => !t.done)
+    .sort((a, b) => a.order - b.order);
 
-  // Для показа: невыполненные сверху, выполненные снизу.
-  // Внутри каждой группы сохраняем исходный порядок (order).
-  // Поле order в базе НЕ трогаем — это только порядок отображения.
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1; // невыполненные раньше
-    if (a.done) {
-      // Обе выполнены: свежевыполненная — выше (по doneAt убыванию).
-      // У старых задач без doneAt считаем 0 — они уйдут вниз.
-      return (b.doneAt ?? 0) - (a.doneAt ?? 0);
-    }
-    return a.order - b.order; // невыполненные — по порядку добавления
-  });
-
-  // Есть ли выполненные задачи — от этого зависит показ кнопки уборки.
-  const hasDone = tasks.some((t) => t.done);
+  // Выполненные — отдельной группой, свежевыполненная сверху (по doneAt убыв.).
+  const doneTasks = [...tasks]
+    .filter((t) => t.done)
+    .sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0));
 
   // "Текущая" задача = первая невыполненная по порядку.
   const currentTask = tasks.find((t) => !t.done) ?? null;
@@ -335,8 +302,10 @@ function App() {
             </div>
             <p className="mt-1 text-sm font-medium text-text-muted">
               {tasks.length === 0
-                ? "Пока пусто. Добавь первую задачу 👇"
-                : `Запланировано: ${formatDuration(totalMin)} · задач ${tasks.length}`}
+                ? "Пока пусто. Добавь первую задачу ниже"
+                : activeTasks.length === 0
+                  ? "Всё сделано"
+                  : `Осталось: ${activeTasks.length}`}
             </p>
 
             {/* Зона добавления задачи: поле + кнопка */}
@@ -375,39 +344,21 @@ function App() {
               </button>
             </div>
 
-            {/* ТАЙМЛАЙН ДНЯ */}
-            <ul className="mt-6 flex flex-col gap-3">
-              {sortedTasks.map((task, index) => {
-                const barHeight = Math.max(
-                  MIN_TILE_PX,
-                  Math.round(task.durationMin * PX_PER_MIN),
-                );
+            {/* ===== АКТУАЛЬНЫЕ ЗАДАЧИ ===== */}
+            <ul className="mt-6 flex flex-col gap-2.5">
+              {activeTasks.map((task, index) => {
                 const isOpen = openId === task.id;
-
-                // Можно ли двигать вверх/вниз: есть видимый сосед той же группы (done).
-                const prev = sortedTasks[index - 1];
-                const next = sortedTasks[index + 1];
-                const canUp = !!prev && prev.done === task.done;
-                const canDown = !!next && next.done === task.done;
+                const canUp = index > 0;
+                const canDown = index < activeTasks.length - 1;
 
                 return (
                   <li key={task.id}>
-                    <div
-                      style={{ height: `${barHeight}px` }}
-                      className="flex w-full items-center gap-3 overflow-hidden rounded-tile border border-border bg-surface px-4"
-                    >
+                    <div className="flex w-full items-center gap-3 rounded-tile border border-border bg-surface px-4 py-3 shadow-tile">
                       <button
                         onClick={() => handleToggle(task.id!)}
                         aria-label="Отметить выполненной"
-                        className={
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors active:scale-90 " +
-                          (task.done
-                            ? "border-reward bg-reward text-bg"
-                            : "border-border")
-                        }
-                      >
-                        {task.done ? <IconCheck className="h-4 w-4" /> : null}
-                      </button>
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-border transition-colors active:scale-90"
+                      />
 
                       {editId === task.id ? (
                         /* Режим правки названия: поле + сохранить/отменить */
@@ -445,20 +396,10 @@ function App() {
                         <>
                           <button
                             onClick={() => handleExpand(task.id!)}
-                            className="flex min-w-0 flex-1 flex-col text-left active:opacity-70"
+                            className="min-w-0 flex-1 text-left active:opacity-70"
                           >
-                            <span
-                              className={
-                                "truncate text-[17px] font-medium leading-snug " +
-                                (task.done
-                                  ? "text-text-muted line-through"
-                                  : "text-text")
-                              }
-                            >
+                            <span className="block text-[17px] font-medium leading-snug text-text wrap-anywhere">
                               {task.title}
-                            </span>
-                            <span className="mt-0.5 text-sm font-medium text-text-muted">
-                              {formatDuration(task.durationMin)}
                             </span>
                           </button>
 
@@ -467,7 +408,7 @@ function App() {
                             onClick={() => handleExpand(task.id!)}
                             aria-label="Действия"
                             className={
-                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors " +
+                              "flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full transition-colors " +
                               (isOpen
                                 ? "bg-surface-2 text-text"
                                 : "text-text-muted active:bg-border active:text-text")
@@ -479,100 +420,103 @@ function App() {
                       )}
                     </div>
 
-                    {/* Панель снизу: длительность + действия. Открывается тапом по плитке или ⋮. */}
+                    {/* Панель снизу: только действия (длительность убрана). */}
                     {isOpen && editId !== task.id && (
-                      <div className="mt-2 flex flex-col gap-3 px-1">
-                        {/* Ряд 1: пресеты длительности */}
-                        <div className="flex gap-2">
-                          {PRESETS.map((min) => {
-                            const active = task.durationMin === min;
-                            return (
-                              <button
-                                key={min}
-                                onClick={() => handleDuration(task.id!, min)}
-                                className={
-                                  "rounded-btn px-4 py-2 text-sm font-semibold transition-colors " +
-                                  (active
-                                    ? "bg-surface-2 text-text border border-text-muted"
-                                    : "bg-transparent text-text-muted border border-border active:bg-surface-2")
-                                }
-                              >
-                                {formatDuration(min)}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Ряд 2: действия — изменить, выше, ниже, удалить */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEdit(task)}
-                            className="flex items-center gap-1.5 rounded-btn border border-border px-3 py-2 text-sm font-semibold text-text-muted transition-colors active:bg-surface-2 active:text-text"
-                          >
-                            <IconEdit className="h-4 w-4" /> Изменить
-                          </button>
-                          <button
-                            onClick={() => handleMove(index, -1)}
-                            disabled={!canUp}
-                            aria-label="Выше"
-                            className={
-                              "flex h-9 w-10 items-center justify-center rounded-btn border transition-colors " +
-                              (canUp
-                                ? "border-border text-text-muted active:bg-surface-2 active:text-text"
-                                : "border-border text-border")
-                            }
-                          >
-                            <IconArrowUp className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleMove(index, 1)}
-                            disabled={!canDown}
-                            aria-label="Ниже"
-                            className={
-                              "flex h-9 w-10 items-center justify-center rounded-btn border transition-colors " +
-                              (canDown
-                                ? "border-border text-text-muted active:bg-surface-2 active:text-text"
-                                : "border-border text-border")
-                            }
-                          >
-                            <IconArrowDown className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(task.id!)}
-                            aria-label="Удалить задачу"
-                            className={
-                              "ml-auto flex items-center gap-1.5 rounded-btn border px-3 py-2 text-sm font-semibold transition-colors " +
-                              (confirmId === task.id
-                                ? "border-reward text-reward active:bg-border"
-                                : "border-border text-text-muted active:bg-surface-2 active:text-text")
-                            }
-                          >
-                            <IconTrash className="h-4 w-4" />
-                            {confirmId === task.id ? "Точно?" : ""}
-                          </button>
-                        </div>
+                      <div className="mt-2 flex gap-2 px-1">
+                        <button
+                          onClick={() => startEdit(task)}
+                          className="flex items-center gap-1.5 rounded-btn border border-border px-3 py-2 text-sm font-semibold text-text-muted transition-colors active:bg-surface-2 active:text-text"
+                        >
+                          <IconEdit className="h-4 w-4" /> Изменить
+                        </button>
+                        <button
+                          onClick={() => handleMove(index, -1)}
+                          disabled={!canUp}
+                          aria-label="Выше"
+                          className={
+                            "flex h-9 w-10 items-center justify-center rounded-btn border transition-colors " +
+                            (canUp
+                              ? "border-border text-text-muted active:bg-surface-2 active:text-text"
+                              : "border-border text-border")
+                          }
+                        >
+                          <IconArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMove(index, 1)}
+                          disabled={!canDown}
+                          aria-label="Ниже"
+                          className={
+                            "flex h-9 w-10 items-center justify-center rounded-btn border transition-colors " +
+                            (canDown
+                              ? "border-border text-text-muted active:bg-surface-2 active:text-text"
+                              : "border-border text-border")
+                          }
+                        >
+                          <IconArrowDown className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(task.id!)}
+                          aria-label="Удалить задачу"
+                          className={
+                            "ml-auto flex items-center gap-1.5 rounded-btn border px-3 py-2 text-sm font-semibold transition-colors " +
+                            (confirmId === task.id
+                              ? "border-reward text-reward active:bg-border"
+                              : "border-border text-text-muted active:bg-surface-2 active:text-text")
+                          }
+                        >
+                          <IconTrash className="h-4 w-4" />
+                          {confirmId === task.id ? "Точно?" : ""}
+                        </button>
                       </div>
                     )}
                   </li>
                 );
               })}
             </ul>
-            
-            {/* Уборка: удалить все выполненные разом. Только если есть что чистить. */}
-            {hasDone && (
-              <button
-                onClick={handleClearDone}
-                className={
-                  "mt-5 w-full rounded-btn border py-3 text-sm font-semibold transition-colors " +
-                  (confirmClear
-                    ? "border-border bg-surface-2 text-text active:bg-border"
-                    : "border-border text-text-muted active:bg-surface-2")
-                }
-              >
-                {confirmClear ? "Удалить выполненные?" : "Очистить выполненные"}
-              </button>
-            )}
 
+            {/* ===== ВЫПОЛНЕННЫЕ — отдельная фоновая зона ===== */}
+            {doneTasks.length > 0 && (
+              <div className="mt-8 rounded-tile bg-surface-2 p-3">
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-text-muted">
+                    <IconCheck className="h-4 w-4 text-reward" />
+                    Выполнено · {doneTasks.length}
+                  </span>
+                  <button
+                    onClick={handleClearDone}
+                    className={
+                      "rounded-btn px-3 py-1.5 text-xs font-semibold transition-colors " +
+                      (confirmClear
+                        ? "text-reward active:bg-border"
+                        : "text-text-muted active:bg-surface active:text-text")
+                    }
+                  >
+                    {confirmClear ? "Удалить всё?" : "Очистить"}
+                  </button>
+                </div>
+
+                <ul className="flex flex-col gap-2">
+                  {doneTasks.map((task) => (
+                    <li key={task.id}>
+                      <div className="flex w-full items-center gap-3 rounded-tile bg-surface/60 px-4 py-2.5">
+                        <button
+                          onClick={() => handleToggle(task.id!)}
+                          aria-label="Вернуть в актуальные"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-reward bg-reward text-bg transition-colors active:scale-90"
+                        >
+                          <IconCheck className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-text-muted line-through wrap-anywhere">
+                          {task.title}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
             {/* ===== ПЕРЕНОС ДАННЫХ: экспорт / импорт одним файлом ===== */}
             <div className="mt-10 border-t border-border pt-6">
               <p className="text-sm font-medium text-text-muted">
@@ -694,10 +638,6 @@ function NowScreen({
             <h2 className="mt-4 text-[34px] font-bold leading-tight tracking-[-0.02em] text-text">
               {currentTask.title}
             </h2>
-
-            <p className="mt-3 text-lg font-medium text-text-muted">
-              {formatDuration(currentTask.durationMin)}
-            </p>
 
             {/* Большая кнопка под палец: отметить выполненной */}
             <button
@@ -825,8 +765,8 @@ function RewardBurst({ streak, firstToday }: { streak: number; firstToday: boole
 
       {/* Плашка "Серия N" — только при первом выполнении за день */}
       {firstToday && (
-        <div className="animate-streak-rise absolute bottom-28 rounded-btn bg-reward px-5 py-3 text-[17px] font-bold text-bg shadow-lg">
-          Серия: {streak} 🔥
+        <div className="animate-streak-rise absolute bottom-28 flex items-center gap-1.5 rounded-btn bg-reward px-5 py-3 text-[17px] font-bold text-bg shadow-lg">
+          Серия: {streak} <IconFire className="h-5 w-5" />
         </div>
       )}
     </div>
