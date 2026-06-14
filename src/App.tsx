@@ -59,10 +59,19 @@ function App() {
     () => (localStorage.getItem("adhd-theme") === "light" ? "light" : "dark"),
   );
 
-  // При смене темы добавляем/снимаем класс .light на <html> и сохраняем выбор.
+  // При смене темы: класс .light на <html>, сохранение выбора
+  // И ГЛАВНОЕ — перекрашиваем theme-color, чтобы системная панель Android
+  // (нижние кнопки) совпадала с фоном приложения, а не торчала серым «бельмом».
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
     localStorage.setItem("adhd-theme", theme);
+
+    // Цвета должны совпадать с --bg каждой темы из index.css:
+    //   dark:  222 20% 8%   → #0c0f14
+    //   light: 214 32% 93%  → #e3e8f0
+    const barColor = theme === "light" ? "#e3e8f0" : "#0c0f14";
+    const meta = document.getElementById("theme-color-meta");
+    if (meta) meta.setAttribute("content", barColor);
   }, [theme]);
 
   function toggleTheme() {
