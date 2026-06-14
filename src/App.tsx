@@ -21,9 +21,7 @@ import {
   IconClose,
   IconEdit,
   IconFire,
-  IconMoon,
   IconMore,
-  IconSun,
   IconTrash,
 } from "./components/Icons";
 
@@ -53,30 +51,6 @@ function App() {
   // Когда != null — на экране играет награда (число = серия в плашке).
   // Если firstToday=false, плашку "Серия N" не показываем, только искры.
   const [reward, setReward] = useState<{ streak: number; firstToday: boolean } | null>(null);
-
-  // Тема: "dark" (по умолчанию) или "light". Храним в localStorage, чтобы пережила перезагрузку.
-  const [theme, setTheme] = useState<"dark" | "light">(
-    () => (localStorage.getItem("adhd-theme") === "light" ? "light" : "dark"),
-  );
-
-  // При смене темы: класс .light на <html>, сохранение выбора
-  // И ГЛАВНОЕ — перекрашиваем theme-color, чтобы системная панель Android
-  // (нижние кнопки) совпадала с фоном приложения, а не торчала серым «бельмом».
-  useEffect(() => {
-    document.documentElement.classList.toggle("light", theme === "light");
-    localStorage.setItem("adhd-theme", theme);
-
-    // Цвета должны совпадать с --bg каждой темы из index.css:
-    //   dark:  222 20% 8%   → #0c0f14
-    //   light: 214 32% 93%  → #e3e8f0
-    const barColor = theme === "light" ? "#e3e8f0" : "#0c0f14";
-    const meta = document.getElementById("theme-color-meta");
-    if (meta) meta.setAttribute("content", barColor);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((cur) => (cur === "light" ? "dark" : "light"));
-  }
 
   async function refresh() {
     const list = await getAllTasks();
@@ -271,8 +245,6 @@ function App() {
             remaining={remaining}
             hasTasks={tasks.length > 0}
             streak={streak}
-            theme={theme}
-            onToggleTheme={toggleTheme}
             title={title}
             setTitle={setTitle}
             onAdd={handleAdd}
@@ -292,15 +264,6 @@ function App() {
                     <IconFire className="h-4 w-4" /> {streak}
                   </span>
                 )}
-                <button
-                  onClick={toggleTheme}
-                  aria-label="Сменить тему"
-                  className="flex items-center justify-center rounded-btn border border-border bg-surface-2 px-3 py-2 text-text transition-colors active:bg-border"
-                >
-                  {theme === "light"
-                    ? <IconMoon className="h-5 w-5" />
-                    : <IconSun className="h-5 w-5" />}
-                </button>
                 <button
                   onClick={() => setMode("now")}
                   className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
@@ -583,8 +546,6 @@ function NowScreen({
   onAdd,
   onToggle,
   onOpenList,
-  theme,
-  onToggleTheme,
 }: {
   currentTask: Task | null;
   remaining: number;
@@ -595,8 +556,6 @@ function NowScreen({
   onAdd: () => void;
   onToggle: (id: number) => void;
   onOpenList: () => void;
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
 }) {
   // Короткий лайм-пульс кнопки "Готово" в момент выполнения (дофаминовый акцент).
   const [popNow, setPopNow] = useState(false);
@@ -620,15 +579,6 @@ function NowScreen({
               <IconFire className="h-4 w-4" /> {streak}
             </span>
           )}
-          <button
-            onClick={onToggleTheme}
-            aria-label="Сменить тему"
-            className="flex items-center justify-center rounded-btn border border-border bg-surface-2 px-3 py-2 text-text transition-colors active:bg-border"
-          >
-            {theme === "light"
-              ? <IconMoon className="h-5 w-5" />
-              : <IconSun className="h-5 w-5" />}
-          </button>
           <button
             onClick={onOpenList}
             className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
