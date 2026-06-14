@@ -25,6 +25,8 @@ import {
   IconTrash,
 } from "./components/Icons";
 
+import { NowScreen } from "./components/NowScreen";
+import { RewardBurst } from "./components/RewardBurst";
 
 function App() {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -52,53 +54,74 @@ function App() {
   // Если firstToday=false, плашку "Серия N" не показываем, только искры.
   const [reward, setReward] = useState<{ streak: number; firstToday: boolean } | null>(null);
 
-  async function refresh() {
+async function refresh() {
+  try {
     const list = await getAllTasks();
     setTasks(list);
     const meta = await getMeta();
     setStreak(meta.streakCount);
+  } catch (err) {
+    console.error("Ошибка при загрузке задач:", err);
+    setIoMsg("Не удалось загрузить задачи. Попробуй перезагрузить страницу.");
+    window.setTimeout(() => setIoMsg(null), 5000);
   }
+}
 
   useEffect(() => {
     refresh();
   }, []);
 
-  async function handleAdd() {
-    const t = title.trim();
-    if (!t) return;
+async function handleAdd() {
+  const t = title.trim();
+  if (!t) return;
+  try {
     await addTask(t);
     setTitle("");
     await refresh();
+  } catch (err) {
+    console.error(err);
+    setIoMsg("Не удалось добавить задачу");
+    window.setTimeout(() => setIoMsg(null), 3000);
   }
+}
 
-  async function handleToggle(id: number) {
-    // Узнаём состояние ДО переключения: засчитываем серию только при отметке "выполнено".
-    const before = tasks.find((t) => t.id === id);
-    const becomingDone = before ? !before.done : false;
+async function handleToggle(id: number) {
+  const before = tasks.find((t) => t.id === id);
+  const becomingDone = before ? !before.done : false;
 
+  try {
     await toggleDone(id);
 
     if (becomingDone) {
-      // Задачу отметили выполненной → засчитываем в серию и играем награду.
       const result = await registerDone();
       setReward(result);
-      // Награда живёт ~1.8 сек (под длину анимации плашки), потом убираем.
       window.setTimeout(() => setReward(null), 1800);
     }
 
     await refresh();
+  } catch (err) {
+    console.error(err);
+    setIoMsg("Не удалось отметить задачу");
+    window.setTimeout(() => setIoMsg(null), 3000);
   }
+}
 
-  // Сдвинуть АКТУАЛЬНУЮ задачу на одну позицию вверх (-1) или вниз (+1).
-  // index — позиция в activeTasks (выполненные не двигаем — у них своя сортировка по времени).
-  async function handleMove(index: number, delta: number) {
-    const neighbor = index + delta;
-    if (neighbor < 0 || neighbor >= activeTasks.length) return; // края списка
-    const a = activeTasks[index];
-    const b = activeTasks[neighbor];
+async function handleMove(index: number, delta: number) {
+  const neighbor = index + delta;
+  if (neighbor < 0 || neighbor >= activeTasks.length) return;
+
+  const a = activeTasks[index];
+  const b = activeTasks[neighbor];
+
+  try {
     await swapOrder(a.id!, b.id!);
     await refresh();
+  } catch (err) {
+    console.error(err);
+    setIoMsg("Не удалось поменять порядок задач");
+    window.setTimeout(() => setIoMsg(null), 3000);
   }
+}
 
 
   function handleDelete(id: number) {
@@ -117,8 +140,14 @@ function App() {
   }
 
   async function deleteAndRefresh(id: number) {
-    await deleteTask(id);
-    await refresh();
+    try {
+      await deleteTask(id);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      setIoMsg("Не удалось удалить задачу");
+      window.setTimeout(() => setIoMsg(null), 3000);
+    }
   }
 
   function handleClearDone() {
@@ -134,34 +163,42 @@ function App() {
   }
 
   async function clearAndRefresh() {
-    await deleteDoneTasks();
-    await refresh();
+    try {
+      await deleteDoneTasks();
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      setIoMsg("Не удалось очистить выполненные задачи");
+      window.setTimeout(() => setIoMsg(null), 3000);
+    }
   }
 
-  // ЭКСПОРТ: собрать все данные и скачать одним .json-файлом.
-  async function handleExport() {
+async function handleExport() {
+  try {
     const data = await exportAll();
-    // Превращаем объект в текст JSON (с отступами — файл читаемый глазами).
     const text = JSON.stringify(data, null, 2);
     const blob = new Blob([text], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
-    // Имя файла с датой: adhd-backup-2026-06-13.json
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    // Создаём временную ссылку и "кликаем" по ней — браузер скачивает файл.
     const a = document.createElement("a");
     a.href = url;
     a.download = `adhd-backup-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url); // освобождаем память
+    URL.revokeObjectURL(url);
 
     setIoMsg("Файл сохранён ✓");
     window.setTimeout(() => setIoMsg(null), 3000);
+  } catch (err) {
+    console.error(err);
+    setIoMsg("Не удалось сохранить файл");
+    window.setTimeout(() => setIoMsg(null), 3000);
   }
+}
 
   // ИМПОРТ, шаг 1 — первый тап по кнопке: просим подтверждение (затирание!).
   function handleImportClick() {
@@ -204,13 +241,19 @@ function App() {
   }
 
   // Сохранить отредактированное название и выйти из режима правки.
-  async function commitEdit() {
-    if (editId == null) return;
+async function commitEdit() {
+  if (editId == null) return;
+  try {
     await renameTask(editId, editText);
     setEditId(null);
     setEditText("");
     await refresh();
+  } catch (err) {
+    console.error(err);
+    setIoMsg("Не удалось сохранить название");
+    window.setTimeout(() => setIoMsg(null), 3000);
   }
+}
 
   // Отменить редактирование без сохранения.
   function cancelEdit() {
@@ -532,205 +575,5 @@ function App() {
     </div>
   );
 }
-
-/* ============================================================
-   ЭКРАН «СЕЙЧАС» — крупно ОДНА текущая задача.
-   ============================================================ */
-function NowScreen({
-  currentTask,
-  remaining,
-  hasTasks,
-  streak,
-  title,
-  setTitle,
-  onAdd,
-  onToggle,
-  onOpenList,
-}: {
-  currentTask: Task | null;
-  remaining: number;
-  hasTasks: boolean;
-  streak: number;
-  title: string;
-  setTitle: (v: string) => void;
-  onAdd: () => void;
-  onToggle: (id: number) => void;
-  onOpenList: () => void;
-}) {
-  // Короткий лайм-пульс кнопки "Готово" в момент выполнения (дофаминовый акцент).
-  const [popNow, setPopNow] = useState(false);
-
-  // Нажали "Готово": включаем пульс и сразу зовём onToggle.
-  // Класс снимется сам по событию onAnimationEnd.
-  function handleDonePress(id: number) {
-    setPopNow(true);
-    onToggle(id);
-  }
-
-  return (
-    <>
-
-      {/* Шапка: дата-слово + кнопка перехода к списку */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-bold tracking-[-0.02em]">Сейчас</h1>
-        <div className="flex items-center gap-2">
-          {streak > 0 && (
-            <span className="flex items-center gap-1 rounded-btn border border-border bg-surface-2 px-3 py-2 text-sm font-bold text-reward">
-              <IconFire className="h-4 w-4" /> {streak}
-            </span>
-          )}
-          <button
-            onClick={onOpenList}
-            className="rounded-btn border border-border bg-surface-2 px-4 py-2 text-sm font-semibold text-text transition-colors active:bg-border"
-          >
-            Все задачи
-          </button>
-        </div>
-      </div>
-
-      {/* Центральная зона: либо текущая задача, либо "всё сделано" */}
-      <div className="flex flex-1 flex-col items-center justify-center py-8">
-        {currentTask ? (
-          <div className="flex w-full flex-col items-center text-center">
-            <p className="text-sm font-medium text-text-muted">Сейчас делаем</p>
-
-            <h2 className="mt-4 text-[34px] font-bold leading-tight tracking-[-0.02em] text-text">
-              {currentTask.title}
-            </h2>
-
-            {/* Большая кнопка под палец: отметить выполненной */}
-            <button
-              onClick={() => handleDonePress(currentTask.id!)}
-              onAnimationEnd={() => setPopNow(false)}
-              className={
-                "mt-10 flex h-16 w-full items-center justify-center rounded-btn bg-surface-2 border border-border text-[19px] font-semibold text-text transition-colors active:bg-border " +
-                (popNow ? "animate-reward-pop" : "")
-              }
-            >
-              Готово <IconCheck className="ml-2 h-5 w-5" />
-            </button>
-
-            {remaining > 1 && (
-              <p className="mt-5 text-sm font-medium text-text-muted">
-                Дальше ещё {remaining - 1}
-              </p>
-            )}
-          </div>
-        ) : (
-          /* Всё выполнено ИЛИ задач вообще нет — спокойный экран */
-          <div className="flex flex-col items-center text-center">
-            <IconCheck className="h-14 w-14 text-reward" />
-            <h2 className="mt-5 text-[28px] font-bold tracking-[-0.02em] text-text">
-              На сегодня всё
-            </h2>
-            <p className="mt-2 text-base font-medium text-text-muted">
-              {hasTasks ? "Можно выдохнуть." : "Тихо и спокойно."}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Низ экрана: быстрое добавление задачи (минимум трения) */}
-      <div className="sticky bottom-0 flex gap-3 bg-bg pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-        <div className="relative min-w-0 flex-1">
-          <input
-            id="new-task-now"
-            type="text"
-            name="new-task-now"
-            autoComplete="off"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onAdd();
-            }}
-            placeholder="Что нужно сделать?"
-            className="h-14 w-full rounded-field border border-border bg-surface-2 pl-4 pr-11 text-[17px] font-medium text-text placeholder:text-[15px] placeholder:text-text-muted outline-none transition-colors focus:border-text-muted"
-          />
-          {title && (
-            <button
-              type="button"
-              onClick={() => setTitle("")}
-              aria-label="Очистить поле"
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-muted active:bg-border active:text-text"
-            >
-              <IconClose className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        <button
-          onClick={onAdd}
-          className="h-14 shrink-0 rounded-btn bg-surface-2 border border-border px-5 text-[17px] font-semibold text-text transition-colors active:bg-border"
-        >
-          Добавить
-        </button>
-      </div>
-    </>
-  );
-}
-
-/* ============================================================
-   НАГРАДА — оверлей с искрами + плашка "Серия N".
-   Лайм-акцент (--reward) — ТОЛЬКО здесь, на успехе.
-   ============================================================ */
-function RewardBurst({ streak, firstToday }: { streak: number; firstToday: boolean }) {
-  // flew=false → искры в центре; через мгновение flew=true → разлетаются (CSS transition).
-  const [flew, setFlew] = useState(false);
-  // gone=true → искры отыграли и убираются из DOM (чтобы не "замирали" точками).
-  const [gone, setGone] = useState(false);
-
-  useEffect(() => {
-    // Двойной requestAnimationFrame — гарантируем, что старт (центр) отрисовался,
-    // и только потом меняем transform, чтобы transition реально проиграл.
-    const r = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setFlew(true)),
-    );
-    // Полёт искр длится 0.7 сек — сразу после убираем их из DOM.
-    const t = window.setTimeout(() => setGone(true), 750);
-    return () => {
-      cancelAnimationFrame(r);
-      window.clearTimeout(t);
-    };
-  }, []);
-
-  // 6 искорок, разлетающихся в разные стороны (углы по кругу).
-  const sparks = Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI * 2 * i) / 6;
-    const dist = 70; // на сколько px улетает искра
-    return {
-      tx: Math.cos(angle) * dist,
-      ty: Math.sin(angle) * dist,
-    };
-  });
-
-  return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-      {/* Искры (убираются из DOM после полёта, чтобы не замирали точками) */}
-      <div className="relative">
-        {!gone && sparks.map((s, i) => (
-          <span
-            key={i}
-            className="animate-spark absolute h-2.5 w-2.5 rounded-full bg-reward"
-            style={{
-              left: "-5px",
-              top: "-5px",
-              transform: flew
-                ? `translate(${s.tx}px, ${s.ty}px) scale(0.4)`
-                : "translate(0px, 0px) scale(1)",
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Плашка "Серия N" — только при первом выполнении за день */}
-      {firstToday && (
-        <div className="animate-streak-rise absolute bottom-28 flex items-center gap-1.5 rounded-btn bg-reward px-5 py-3 text-[17px] font-bold text-bg shadow-lg">
-          Серия: {streak} <IconFire className="h-5 w-5" />
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 export default App;

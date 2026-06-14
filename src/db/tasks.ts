@@ -9,19 +9,19 @@ export function todayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-// CREATE — добавить задачу. Обязателен только title.
-// Остальное подставляется по умолчанию (минимум трения).
 export async function addTask(
   title: string,
   durationMin = 30,
 ): Promise<number> {
-  const count = await db.tasks.count();
+  const lastTask = await db.tasks.orderBy('order').last();
+  const maxOrder = lastTask ? lastTask.order : -1;
+
   const id = await db.tasks.add({
     title: title.trim(),
     durationMin,
-    date: todayStr(), // поле оставляем для совместимости/экспорта, но фильтр по нему больше не идёт
+    date: todayStr(),
     done: false,
-    order: count, // новая задача встаёт в конец общего списка
+    order: maxOrder + 1,
     createdAt: Date.now(),
   } as Task);
   return id as number;
