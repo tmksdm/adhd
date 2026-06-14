@@ -237,7 +237,7 @@ function App() {
   return (
     <div className="min-h-dvh select-none bg-bg text-text">
       {reward && <RewardBurst streak={reward.streak} firstToday={reward.firstToday} />}
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-6">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))]">
         {mode === "now" ? (
           /* ============ РЕЖИМ «СЕЙЧАС»: одна задача крупно ============ */
           <NowScreen
