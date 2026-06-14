@@ -4,7 +4,6 @@ import Dexie, { type EntityTable } from 'dexie';
 export interface Task {
   id: number;            // уникальный номер, Dexie проставит сам (++)
   title: string;         // название — единственное обязательное при добавлении
-  durationMin: number;   // длительность в минутах (по умолчанию 30)
   date: string;          // на какой день, формат "YYYY-MM-DD" (например "2026-06-13")
   done: boolean;         // выполнена или нет
   order: number;         // порядок в списке (для сортировки/перетаскивания)

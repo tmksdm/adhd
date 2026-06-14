@@ -11,14 +11,12 @@ export function todayStr(): string {
 
 export async function addTask(
   title: string,
-  durationMin = 30,
 ): Promise<number> {
   const lastTask = await db.tasks.orderBy('order').last();
   const maxOrder = lastTask ? lastTask.order : -1;
 
   const id = await db.tasks.add({
     title: title.trim(),
-    durationMin,
     date: todayStr(),
     done: false,
     order: maxOrder + 1,
@@ -52,11 +50,6 @@ export async function toggleDone(id: number): Promise<void> {
     done: becomingDone,
     doneAt: becomingDone ? Date.now() : undefined,
   });
-}
-
-// Сменить длительность задачи (пресеты 15/30/60 мин).
-export async function setDuration(id: number, durationMin: number): Promise<void> {
-  await db.tasks.update(id, { durationMin });
 }
 
 // Переименовать задачу (редактирование названия). Пустое имя игнорируем.

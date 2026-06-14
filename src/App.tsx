@@ -435,7 +435,7 @@ async function commitEdit() {
                       )}
                     </div>
 
-                    {/* Панель снизу: только действия (длительность убрана). */}
+                    {/* Панель действий */}
                     {isOpen && editId !== task.id && (
                       <div className="mt-2 flex gap-2 px-1">
                         <button
