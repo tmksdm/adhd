@@ -25,6 +25,7 @@ export default defineConfig({
         background_color: '#0c0f14',
         display: 'standalone',
         display_override: ['standalone'],
+        // @ts-expect-error — ключ edge_to_edge новый, типы vite-plugin-pwa его ещё не знают, но браузер понимает
         edge_to_edge: true,
         start_url: '/adhd/',
         scope: '/adhd/',
